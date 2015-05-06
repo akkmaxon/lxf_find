@@ -19,44 +19,56 @@ Find appropriate LinuxFormat number with desired word inside
 Usage: #{exec_name} [options] query
 EOS
   
-  opts.on("--online", 'Online update') { options[:online] = true }
-  opts.on("--cycle", 'Loop search') { options[:cycle] = true }
+  opts.on("--online", "Online update") { options[:online] = true }
+  opts.on("--cycle", "Search in loop. Possible using with multiple queries.") { options[:cycle] = true }
   opts.on("--help", 'Show help on command-line options') { puts opts.to_s ; exit 0 }
 end.parse!
 
-LOCAL_DIR = "html"
-BASE_URL = "http://www.linuxformat.ru"
-ARCHIVE_URL = "#{BASE_URL}/archive"
+LOCAL_DIR = "html/"
+BASE_URL = "http://www.linuxformat.ru/"
+ARCHIVE_URL = "#{BASE_URL}archive"
 HEADERS_HASH = {"User-Agent" => "Ruby #{RUBY_VERSION}"}
+write_archive = true
+if ARGV.empty?
+  options = {
+  online: true,
+  cycle: true
+}
+end
 
 if options[:online]
   FileUtils.makedirs(LOCAL_DIR) unless File.exists? LOCAL_DIR
-
-  page = Nokogiri::HTML(open(ARCHIVE_URL, HEADERS_HASH))
-
-  links = page.css('div.b-anons-cover a').map{ |a| a['href']}
-
+  links = LxfFind::extract_links(ARCHIVE_URL, "online", HEADERS_HASH)
   links.each do |link|
-    filename = LOCAL_DIR + link
+    filename = LOCAL_DIR + link.to_s
     unless File.exists?(filename)
-      puts "Getting " + BASE_URL + link
+      puts "Getting " + BASE_URL + link.to_s
       File.open(filename, 'w') do |f|
-        f.write(open(BASE_URL + link, HEADERS_HASH).read)
+        f.write(open(BASE_URL + "anons#{link}.phtml", HEADERS_HASH).read)
+      end
+      if write_archive
+        `mv #{LOCAL_DIR}archive '#{LOCAL_DIR}archive#{Time.now}'`
+        File.open("#{LOCAL_DIR}archive", "w") { |f| f.puts(open(ARCHIVE_URL).read) }
+        write_archive = false
       end
     end
   end
 else
-  ###offline initializing links
-  puts "NOT READY YET, enter --online please"
-  exit 1
+  unless File.exists? LOCAL_DIR
+    puts "Oops, html sources are missing. Find manually and rename their directory \nto #{File.expand_path(File.dirname(__FILE__) + "/../")}/#{LOCAL_DIR} \nor run program with --online option."
+    exit 1
+  end
+  archive_url = File.expand_path($LOAD_PATH[-1] + "/../#{LOCAL_DIR}") + "/archive"
+  links = LxfFind::extract_links(archive_url, "local", HEADERS_HASH)
 end
+
 local_pages = links.sort
 if options[:cycle]
   answer = "yes"
   while answer != "n"
-    LxfFind::find_inside(local_pages)
+    LxfFind::find_inside(local_pages,query = ARGV.shift)
     puts "\nContinue? (y/n)"
-    answer = gets.chomp
+    answer = STDIN::gets.chomp
   end
 else
   LxfFind::find_inside(local_pages,query = ARGV.shift)
