@@ -4,8 +4,8 @@ require 'nokogiri'
 require 'open-uri'
 require 'fileutils'
 require 'optparse'
-$LOAD_PATH << File.expand_path(File.dirname(__FILE__), "/../lib")
-
+$LOAD_PATH << File.expand_path(File.dirname(__FILE__) + "/../lib")
+require 'lxf_find'
 options = {
   online: false,
   cycle: false
@@ -29,37 +29,36 @@ BASE_URL = "http://www.linuxformat.ru"
 ARCHIVE_URL = "#{BASE_URL}/archive"
 HEADERS_HASH = {"User-Agent" => "Ruby #{RUBY_VERSION}"}
 
+if options[:online]
+  FileUtils.makedirs(LOCAL_DIR) unless File.exists? LOCAL_DIR
 
-FileUtils.makedirs(LOCAL_DIR) unless File.exists? LOCAL_DIR
+  page = Nokogiri::HTML(open(ARCHIVE_URL, HEADERS_HASH))
 
-page = Nokogiri::HTML(open(ARCHIVE_URL, HEADERS_HASH))
+  links = page.css('div.b-anons-cover a').map{ |a| a['href']}
 
-links = page.css('div.b-anons-cover a').map{ |a| a['href']}
-
-links.each do |link|
-  filename = LOCAL_DIR + link
-  unless File.exists?(filename)
-    puts "Getting " + BASE_URL + link
-    File.open(filename, 'w') do |f|
-      f.write(open(BASE_URL + link, HEADERS_HASH).read)
+  links.each do |link|
+    filename = LOCAL_DIR + link
+    unless File.exists?(filename)
+      puts "Getting " + BASE_URL + link
+      File.open(filename, 'w') do |f|
+        f.write(open(BASE_URL + link, HEADERS_HASH).read)
+      end
     end
   end
+else
+  ###offline initializing links
+  puts "NOT READY YET, enter --online please"
+  exit 1
 end
-
 local_pages = links.sort
-answer = "yes"
-while answer != "n"
-  puts "What do you search?:"
-  query = gets.chomp
-
-  local_pages.each do |page|
-    filename= LOCAL_DIR + page
-    html_source = open(filename).read
-    if html_source.include?(query) or html_source.include?(query.upcase) or html_source.include?(query.capitalize)
-      puts "LinuxFormat#" + /\d{2,3}/.match(page)[0] + "\n"
-    end
+if options[:cycle]
+  answer = "yes"
+  while answer != "n"
+    LxfFind::find_inside(local_pages)
+    puts "\nContinue? (y/n)"
+    answer = gets.chomp
   end
-  10.times { print "---" }
-  puts "\nContinue? (y/n)"
-  answer = gets.chomp
+else
+  LxfFind::find_inside(local_pages,query = ARGV.shift)
 end
+
