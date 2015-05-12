@@ -11,7 +11,7 @@ options = {
   cycle: false
 }
 
-OptionParser.new do |opts|
+pars = OptionParser.new do |opts|
   exec_name = File.basename($PROGRAM_NAME)
   opts.banner = <<-EOS
 Find appropriate LinuxFormat number with desired word inside
@@ -19,21 +19,28 @@ Find appropriate LinuxFormat number with desired word inside
 Usage: #{exec_name} [options] query
 EOS
   
-  opts.on("--online", "Online update") { options[:online] = true }
+  opts.on("--online", "Online update(offline is default)") { options[:online] = true }
   opts.on("--cycle", "Search in loop. Possible using with multiple queries.") { options[:cycle] = true }
-  opts.on("--help", 'Show help on command-line options') { puts opts.to_s ; exit 0 }
-end.parse!
+  opts.on("--help", 'Show help on command-line options') do 
+    puts opts.to_s
+    exit 0
+  end
+end
 
+pars.parse!
 LOCAL_DIR = "html/"
 BASE_URL = "http://www.linuxformat.ru/"
 ARCHIVE_URL = "#{BASE_URL}archive"
 HEADERS_HASH = {"User-Agent" => "Ruby #{RUBY_VERSION}"}
 write_archive = true
+
 if ARGV.empty?
   options = {
   online: true,
   cycle: true
 }
+  puts pars.to_s
+  exit 0
 end
 
 if options[:online]
