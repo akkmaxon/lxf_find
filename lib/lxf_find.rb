@@ -4,19 +4,19 @@ module LxfFind
       puts "What do you search?:"
       query = STDIN::gets.chomp
     else
-      puts query
+      puts "Search for #{query}:"
     end
     puts "====================\n"
     local_pages.each do |page|
-      filename= LOCAL_DIR + page.to_s
-      html_source = open(filename).read
-      if html_source.include?(query) or html_source.include?(query.upcase) or html_source.include?(query.capitalize)
-        puts "LinuxFormat##{page}\n"
-      end
+	  html = Nokogiri::HTML(open(LOCAL_DIR + page.to_s))
+	  node_anons = html.css('.node-anons')
+	  text = node_anons.empty? ? html.css('body').text : node_anons.text
+	  puts "LinuxFormat##{page}\n" if text.match(/#{query}/i)
     end
     puts "====================\n"
   end
-  def self.extract_links(url, method, headers = {"User-Agent" => "Ruby #{RUBY_VERSION}"})
+
+  def self.extract_links(url, method, headers)
     case method
     when 'local'
       archive_page = open(url)
